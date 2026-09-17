@@ -197,14 +197,14 @@ class DownloadManager:
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
-                'preferredquality': '192',
+                'preferredquality': '320',
             }]
         else:
             if job.format_id == 'best' or not job.format_id:
-                ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+                ydl_opts['format'] = 'bestvideo+bestaudio/best'
             elif job.format_id.endswith('p'):
                 height = job.format_id.replace('p', '')
-                ydl_opts['format'] = f'bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
+                ydl_opts['format'] = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
             else:
                 ydl_opts['format'] = f'{job.format_id}+bestaudio/best'
 
