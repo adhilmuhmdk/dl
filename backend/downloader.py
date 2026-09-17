@@ -177,9 +177,11 @@ class DownloadManager:
                 'home': abs_download_dir,
                 'temp': abs_temp_dir,
             },
+            'js_runtimes': {'node': {}},
+            'remote_components': ['ejs:github'],
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'android', 'web'],
+                    'player_client': ['android', 'ios', 'web'],
                 }
             },
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
