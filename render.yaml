@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mediafetch-backend
+    env: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    region: singapore
+    plan: free
+    envVars:
+      - key: MAX_CONCURRENT_DOWNLOADS
+        value: "2"
+      - key: MAX_DOWNLOAD_SIZE_MB
+        value: "2048"
+      - key: FILE_RETENTION_HOURS
+        value: "6"
+      - key: ALLOWED_ORIGINS
+        value: "*"
