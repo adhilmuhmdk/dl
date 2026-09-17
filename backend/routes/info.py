@@ -25,7 +25,7 @@ def _extract_ytdlp_info(url: str) -> dict:
         'cachedir': False,
         'extractor_args': {
             'youtube': {
-                'player_client': ['mweb', 'android', 'web'],
+                'player_client': ['ios', 'android', 'web'],
             }
         },
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -86,51 +86,63 @@ async def get_media_info(payload: InfoRequest):
         )
     )
 
-    # Extract all available heights and stream specs from raw_formats
-    available_heights = {}
+    # Dynamically extract ALL available video heights from stream formats
+    height_map = {}
     for f in raw_formats:
+        vcodec = f.get('vcodec', 'none')
         h = f.get('height')
-        if h and isinstance(h, int) and h > 0:
-            if h not in available_heights or (f.get('filesize') or 0) > (available_heights[h].get('filesize') or 0):
-                available_heights[h] = f
+        if h and isinstance(h, int) and h > 0 and vcodec != 'none':
+            curr_size = f.get('filesize') or f.get('filesize_approx') or 0
+            existing_size = (height_map[h].get('filesize') or height_map[h].get('filesize_approx') or 0) if h in height_map else -1
+            if h not in height_map or curr_size >= existing_size:
+                height_map[h] = f
 
-    resolution_targets = [
-        (2160, "2160p (4K Ultra HD)"),
-        (1440, "1440p (2K Quad HD)"),
-        (1080, "1080p Full HD"),
-        (720, "720p HD"),
-        (480, "480p SD"),
-        (360, "360p"),
-        (240, "240p"),
-        (144, "144p"),
-    ]
+    # If no video-only streams found, fallback to all formats with height > 0
+    if not height_map:
+        for f in raw_formats:
+            h = f.get('height')
+            if h and isinstance(h, int) and h > 0:
+                if h not in height_map:
+                    height_map[h] = f
 
-    for target_height, title_label in resolution_targets:
-        # Find exact or closest height stream
-        matching_height = next((h for h in available_heights.keys() if abs(h - target_height) <= 30), None)
-        if matching_height:
-            res_key = f"{target_height}p"
-            if res_key not in seen_keys:
-                seen_keys.add(res_key)
-                stream_info = available_heights[matching_height]
-                stream_fps = stream_info.get('fps')
-                stream_size = stream_info.get('filesize') or stream_info.get('filesize_approx')
-                size_label = format_filesize(stream_size)
-                
-                processed_formats.append(
-                    FormatOption(
-                        format_id=res_key,
-                        ext="mp4",
-                        resolution=title_label,
-                        fps=stream_fps or (60 if target_height >= 1080 else 30),
-                        filesize=stream_size,
-                        vcodec=stream_info.get('vcodec'),
-                        acodec=stream_info.get('acodec'),
-                        format_note=f"{title_label} MP4 Video",
-                        is_audio_only=False,
-                        label=f"{title_label} {f'({size_label})' if size_label else ''}".strip()
-                    )
+    # Sort available heights descending (e.g. 2160p, 1440p, 1080p, 720p, 480p, 360p, 240p, 144p)
+    sorted_heights = sorted(height_map.keys(), reverse=True)
+    for h in sorted_heights:
+        res_key = f"{h}p"
+        if res_key not in seen_keys:
+            seen_keys.add(res_key)
+            stream_info = height_map[h]
+            stream_fps = stream_info.get('fps')
+            stream_size = stream_info.get('filesize') or stream_info.get('filesize_approx')
+            size_label = format_filesize(stream_size)
+
+            label_suffix = ""
+            if h >= 2160:
+                label_suffix = " (4K Ultra HD)"
+            elif h >= 1440:
+                label_suffix = " (2K Quad HD)"
+            elif h >= 1080:
+                label_suffix = " (Full HD)"
+            elif h >= 720:
+                label_suffix = " (HD)"
+
+            fps_str = f" {int(stream_fps)}fps" if stream_fps and stream_fps > 30 else ""
+            res_title = f"{h}p{fps_str}{label_suffix}"
+
+            processed_formats.append(
+                FormatOption(
+                    format_id=res_key,
+                    ext="mp4",
+                    resolution=res_title,
+                    fps=stream_fps or 30,
+                    filesize=stream_size,
+                    vcodec=stream_info.get('vcodec'),
+                    acodec=stream_info.get('acodec'),
+                    format_note=f"{res_title} MP4 Video",
+                    is_audio_only=False,
+                    label=f"{res_title} {f'({size_label})' if size_label else ''}".strip()
                 )
+            )
 
     # Audio only option
     processed_formats.append(
