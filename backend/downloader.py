@@ -211,12 +211,29 @@ class DownloadManager:
             # Ensure MP4 container output where appropriate
             ydl_opts['merge_output_format'] = 'mp4'
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            if job.cancel_event.is_set():
-                job.status = DownloadStatusEnum.CANCELLED
-                return
-                
-            info_dict = ydl.extract_info(job.url, download=True)
+        download_success = False
+        info_dict = None
+        for browser in ['brave', 'chrome', 'edge', 'firefox', 'opera', None]:
+            opts = dict(ydl_opts)
+            if browser:
+                opts['cookiesfrombrowser'] = (browser,)
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    if job.cancel_event.is_set():
+                        job.status = DownloadStatusEnum.CANCELLED
+                        return
+                    info_dict = ydl.extract_info(job.url, download=True)
+                    download_success = True
+                    break
+            except Exception:
+                if job.cancel_event.is_set():
+                    job.status = DownloadStatusEnum.CANCELLED
+                    return
+                continue
+
+        if not download_success or not info_dict:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(job.url, download=True)
             
             if job.cancel_event.is_set():
                 job.status = DownloadStatusEnum.CANCELLED
