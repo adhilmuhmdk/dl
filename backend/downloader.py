@@ -234,43 +234,43 @@ class DownloadManager:
         if not download_success or not info_dict:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(job.url, download=True)
-            
-            if job.cancel_event.is_set():
-                job.status = DownloadStatusEnum.CANCELLED
-                return
-                
-            # Locate downloaded file
-            final_filepath = ydl.prepare_filename(info_dict)
-            if job.audio_only:
-                base, _ = os.path.splitext(final_filepath)
-                final_filepath = f"{base}.mp3"
 
-            if os.path.exists(final_filepath):
-                job.filepath = final_filepath
-                job.filename = os.path.basename(final_filepath)
-                job.filesize = os.path.getsize(final_filepath)
-                job.status = DownloadStatusEnum.COMPLETED
-                job.progress = 100.0
-                job.speed = "0 B/s"
-                job.eta = 0
-            else:
-                # Search download directory for file matching download_id
-                matched_file = None
-                for file_name in os.listdir(abs_download_dir):
-                    if job.download_id in file_name:
-                        matched_file = os.path.join(abs_download_dir, file_name)
-                        break
-                
-                if matched_file and os.path.exists(matched_file):
-                    job.filepath = matched_file
-                    job.filename = os.path.basename(matched_file)
-                    job.filesize = os.path.getsize(matched_file)
-                    job.status = DownloadStatusEnum.COMPLETED
-                    job.progress = 100.0
-                else:
-                    raise Exception("Downloaded file could not be located on disk")
-                    
-            job.updated_at = time.time()
+        if job.cancel_event.is_set():
+            job.status = DownloadStatusEnum.CANCELLED
+            return
+
+        # Locate downloaded file and set COMPLETED status (100%)
+        matched_file = None
+        if info_dict:
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    prep_file = ydl.prepare_filename(info_dict)
+                    if job.audio_only:
+                        base, _ = os.path.splitext(prep_file)
+                        prep_file = f"{base}.mp3"
+                    if os.path.exists(prep_file):
+                        matched_file = prep_file
+            except Exception:
+                pass
+
+        if not matched_file:
+            for file_name in os.listdir(abs_download_dir):
+                if job.download_id in file_name and not file_name.endswith('.part') and not file_name.endswith('.ytdl'):
+                    matched_file = os.path.join(abs_download_dir, file_name)
+                    break
+
+        if matched_file and os.path.exists(matched_file):
+            job.filepath = matched_file
+            job.filename = os.path.basename(matched_file)
+            job.filesize = os.path.getsize(matched_file)
+            job.status = DownloadStatusEnum.COMPLETED
+            job.progress = 100.0
+            job.speed = "0 B/s"
+            job.eta = 0
+        else:
+            raise Exception("Downloaded file could not be located on disk")
+
+        job.updated_at = time.time()
 
     def cleanup_old_files(self):
         abs_download_dir = os.path.abspath(settings.DOWNLOAD_DIR)
