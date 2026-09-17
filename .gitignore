@@ -1,0 +1,26 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+*.log
+
+# Python / Virtualenv
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+.pytest_cache/
+
+# Media Downloads & Temp Storage
+downloads/
+temp/
+backend/downloads/
+backend/temp/
+
+# Environment Variables & OS
+.env
+.env.local
+.DS_Store
+Thumbs.db

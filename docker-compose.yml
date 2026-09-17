@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mediafetch-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./downloads:/app/downloads
+      - ./temp:/app/temp
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DOWNLOAD_DIR=/app/downloads
+      - TEMP_DIR=/app/temp
+      - MAX_CONCURRENT_DOWNLOADS=2
+      - MAX_DOWNLOAD_SIZE_MB=2048
+      - FILE_RETENTION_HOURS=6
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,*
