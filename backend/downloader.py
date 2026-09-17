@@ -200,7 +200,7 @@ class DownloadManager:
         else:
             if job.format_id == 'best' or not job.format_id:
                 ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-            elif job.format_id in ['1080p', '720p', '480p', '360p']:
+            elif job.format_id.endswith('p'):
                 height = job.format_id.replace('p', '')
                 ydl_opts['format'] = f'bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
             else:

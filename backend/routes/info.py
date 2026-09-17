@@ -86,30 +86,49 @@ async def get_media_info(payload: InfoRequest):
         )
     )
 
-    # Standard resolution presets (1080p, 720p, 480p, 360p)
-    available_heights = set()
+    # Extract all available heights and stream specs from raw_formats
+    available_heights = {}
     for f in raw_formats:
         h = f.get('height')
-        if h and isinstance(h, int):
-            available_heights.add(h)
+        if h and isinstance(h, int) and h > 0:
+            if h not in available_heights or (f.get('filesize') or 0) > (available_heights[h].get('filesize') or 0):
+                available_heights[h] = f
 
-    resolution_targets = [1080, 720, 480, 360]
-    for target in resolution_targets:
-        # Check if video has streams matching or close to this target height
-        matching_stream = next((h for h in available_heights if h >= target - 50 and h <= target + 50), None)
-        if matching_stream or any(h >= target for h in available_heights):
-            res_key = f"{target}p"
+    resolution_targets = [
+        (2160, "2160p (4K Ultra HD)"),
+        (1440, "1440p (2K Quad HD)"),
+        (1080, "1080p Full HD"),
+        (720, "720p HD"),
+        (480, "480p SD"),
+        (360, "360p"),
+        (240, "240p"),
+        (144, "144p"),
+    ]
+
+    for target_height, title_label in resolution_targets:
+        # Find exact or closest height stream
+        matching_height = next((h for h in available_heights.keys() if abs(h - target_height) <= 30), None)
+        if matching_height:
+            res_key = f"{target_height}p"
             if res_key not in seen_keys:
                 seen_keys.add(res_key)
+                stream_info = available_heights[matching_height]
+                stream_fps = stream_info.get('fps')
+                stream_size = stream_info.get('filesize') or stream_info.get('filesize_approx')
+                size_label = format_filesize(stream_size)
+                
                 processed_formats.append(
                     FormatOption(
                         format_id=res_key,
                         ext="mp4",
-                        resolution=f"{target}p",
-                        fps=60 if target >= 1080 else 30,
-                        format_note=f"{target}p MP4 Video",
+                        resolution=title_label,
+                        fps=stream_fps or (60 if target_height >= 1080 else 30),
+                        filesize=stream_size,
+                        vcodec=stream_info.get('vcodec'),
+                        acodec=stream_info.get('acodec'),
+                        format_note=f"{title_label} MP4 Video",
                         is_audio_only=False,
-                        label=f"{target}p Video (MP4)"
+                        label=f"{title_label} {f'({size_label})' if size_label else ''}".strip()
                     )
                 )
 
@@ -118,7 +137,7 @@ async def get_media_info(payload: InfoRequest):
         FormatOption(
             format_id="audio_only",
             ext="mp3",
-            resolution="Audio Only",
+            resolution="Audio Only (MP3)",
             format_note="High quality MP3 audio stream",
             is_audio_only=True,
             label="Audio Only (MP3)"
